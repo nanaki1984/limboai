@@ -83,6 +83,14 @@ LimboState *LimboState::named(const String &p_name) {
 	return this;
 }
 
+bool LimboState::_is_transition_allowed(LimboState *p_active_state, const StringName &p_event, const Variant &p_cargo) {
+	bool allowed = true;
+	if (GDVIRTUAL_IS_OVERRIDDEN(_is_transition_allowed)) {
+		GDVIRTUAL_CALL(_is_transition_allowed, p_active_state, p_event, p_cargo, allowed);
+	}
+	return allowed;
+}
+
 void LimboState::_enter() {
 	if (active) {
 		return;
@@ -209,15 +217,6 @@ LimboState *LimboState::call_on_update(const Callable &p_callable) {
 	return this;
 }
 
-void LimboState::set_guard(const Callable &p_guard_callable) {
-	ERR_FAIL_COND(!p_guard_callable.is_valid());
-	guard_callable = p_guard_callable;
-}
-
-void LimboState::clear_guard() {
-	guard_callable = Callable();
-}
-
 void LimboState::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
@@ -249,8 +248,6 @@ void LimboState::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("call_on_enter", "callable"), &LimboState::call_on_enter);
 	ClassDB::bind_method(D_METHOD("call_on_exit", "callable"), &LimboState::call_on_exit);
 	ClassDB::bind_method(D_METHOD("call_on_update", "callable"), &LimboState::call_on_update);
-	ClassDB::bind_method(D_METHOD("set_guard", "guard_callable"), &LimboState::set_guard);
-	ClassDB::bind_method(D_METHOD("clear_guard"), &LimboState::clear_guard);
 	ClassDB::bind_method(D_METHOD("get_blackboard"), &LimboState::get_blackboard);
 
 	ClassDB::bind_method(D_METHOD("set_blackboard_plan", "plan"), &LimboState::set_blackboard_plan);
@@ -259,6 +256,7 @@ void LimboState::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_get_parent_scope_plan"), &LimboState::_get_parent_scope_plan);
 
 	GDVIRTUAL_BIND(_setup);
+	GDVIRTUAL_BIND(_is_transition_allowed, "active_state", "event", "cargo");
 	GDVIRTUAL_BIND(_enter);
 	GDVIRTUAL_BIND(_exit);
 	GDVIRTUAL_BIND(_update, "delta");
@@ -280,5 +278,4 @@ LimboState::LimboState() {
 	agent = nullptr;
 	active = false;
 	blackboard = Ref<Blackboard>(memnew(Blackboard));
-	guard_callable = Callable();
 }

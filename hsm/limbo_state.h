@@ -62,11 +62,13 @@ protected:
 	virtual Node *_get_prefetch_root_for_base_plan();
 
 	virtual void _setup();
+	virtual bool _is_transition_allowed(LimboState *p_active_state, const StringName &p_event, const Variant &p_cargo);
 	virtual void _enter();
 	virtual void _exit();
 	virtual void _update(double p_delta);
 
 	GDVIRTUAL0(_setup);
+	GDVIRTUAL3R(bool, _is_transition_allowed, LimboState*, const StringName&, const Variant&);
 	GDVIRTUAL0(_enter);
 	GDVIRTUAL0(_exit);
 	GDVIRTUAL1(_update, double);
@@ -100,9 +102,6 @@ public:
 	LimboState *get_root() const;
 	bool is_root() const;
 	_FORCE_INLINE_ bool is_active() const { return active; }
-
-	void set_guard(const Callable &p_guard_callable);
-	void clear_guard();
 
 	LimboState();
 };

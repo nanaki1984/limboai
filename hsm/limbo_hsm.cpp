@@ -105,7 +105,7 @@ void LimboHSM::update(double p_delta) {
 	}
 }
 
-void LimboHSM::add_transition(LimboState *p_from_state, LimboState *p_to_state, const StringName &p_event, const Callable &p_guard) {
+void LimboHSM::add_transition(LimboState *p_from_state, LimboState *p_to_state, const StringName &p_event, bool p_allow_reentrancy) {
 	ERR_FAIL_COND_MSG(p_from_state != nullptr && p_from_state->get_parent() != this, "LimboHSM: Unable to add a transition from a state that is not an immediate child of mine.");
 	ERR_FAIL_COND_MSG(p_to_state == nullptr, "LimboHSM: Unable to add a transition to a null state.");
 	ERR_FAIL_COND_MSG(p_to_state->get_parent() != this, "LimboHSM: Unable to add a transition to a state that is not an immediate child of mine.");
@@ -118,7 +118,7 @@ void LimboHSM::add_transition(LimboState *p_from_state, LimboState *p_to_state, 
 		p_from_state != nullptr ? ObjectID(p_from_state->get_instance_id()) : ObjectID(),
 		ObjectID(p_to_state->get_instance_id()),
 		p_event,
-		p_guard
+		p_allow_reentrancy
 	};
 }
 
@@ -131,14 +131,16 @@ void LimboHSM::remove_transition(LimboState *p_from_state, const StringName &p_e
 	transitions.erase(key);
 }
 
-void LimboHSM::_get_transition(LimboState *p_from_state, const StringName &p_event, Transition &r_transition) const {
-	ERR_FAIL_COND_MSG(p_from_state != nullptr && p_from_state->get_parent() != this, "LimboHSM: Unable to get a transition from a state that is not an immediate child of this HSM.");
-	ERR_FAIL_COND_MSG(p_event == StringName(), "LimboHSM: Unable to get a transition with an empty event string.");
+bool LimboHSM::_get_transition(LimboState *p_from_state, const StringName &p_event, Transition &r_transition) const {
+	ERR_FAIL_COND_V_MSG(p_from_state != nullptr && p_from_state->get_parent() != this, false, "LimboHSM: Unable to get a transition from a state that is not an immediate child of this HSM.");
+	ERR_FAIL_COND_V_MSG(p_event == StringName(), false, "LimboHSM: Unable to get a transition with an empty event string.");
 
 	TransitionKey key = Transition::make_key(p_from_state, p_event);
 	if (transitions.has(key)) {
 		r_transition = transitions[key];
+		return true;
 	}
+	return false;
 }
 
 LimboState *LimboHSM::get_leaf_state() const {
@@ -175,54 +177,31 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 		LimboState *to_state = nullptr;
 
 		Transition transition;
-		_get_transition(active_state, p_event, transition);
-		if (transition.is_valid() && transition.is_allowed()) { // #todoalex: remove is_allowed(), also is_valid seems pointless, p_to_state is checked inside add_transition
+		if (_get_transition(active_state, p_event, transition)) {
 			to_state = Object::cast_to<LimboState>(ObjectDB::get_instance(transition.to_state));
-			// #todoalex: check re-entrancy flag here!
+			if (to_state == active_state && !transition.allow_reentrancy) {
+				to_state = nullptr;
+			}
 		}
 		if (to_state == nullptr) {
 			// Get ANYSTATE transition.
-			_get_transition(nullptr, p_event, transition);
-			if (transition.is_valid() && transition.is_allowed()) { // #todoalex: remove is_allowed(), also is_valid seems pointless, p_to_state is checked inside add_transition
+			if (_get_transition(nullptr, p_event, transition)) {
 				to_state = Object::cast_to<LimboState>(ObjectDB::get_instance(transition.to_state));
-				if (to_state == active_state) {
-					// Transitions to self are not allowed with ANYSTATE. // #todoalex: allow it if to_state says it's ok! (use a flag, defaults to false)..maybe it's best to put flag on transition
+				if (to_state == active_state && !transition.allow_reentrancy) {
 					to_state = nullptr;
 				}
 			}
 		}
-		if (to_state != nullptr) {
-			bool permitted = true;
-			if (to_state->guard_callable.is_valid()) {
-				Variant ret;
-
-#ifdef LIMBOAI_MODULE
-				Callable::CallError ce;
-				to_state->guard_callable.callp(nullptr, 0, ret, ce); // #todoalex: use a virtual call on to_state: "is_transition_allowed" or something, passing current state, event and cargo. (defaults to true)
-				if (unlikely(ce.error != Callable::CallError::CALL_OK)) {
-					ERR_PRINT_ONCE("LimboHSM: Error calling substate's guard callable: " + Variant::get_callable_error_text(to_state->guard_callable, nullptr, 0, ce));
-				}
-#elif LIMBOAI_GDEXTENSION
-				ret = to_state->guard_callable.call(); // #todoalex: look up
-#endif
-
-				if (unlikely(ret.get_type() != Variant::BOOL)) {
-					ERR_PRINT_ONCE(vformat("State guard callable %s returned non-boolean value (%s).", to_state->guard_callable, to_state));
-				} else {
-					permitted = bool(ret);
-				}
+		if (to_state && to_state->_is_transition_allowed(active_state, p_event, p_cargo)) {
+			if (!updating) {
+				to_state->_set_cargo(p_cargo);
+				_change_active_state(to_state);
+			} else if (!next_active) {
+				// Only set next_active if we are not already in the process of changing states.
+				to_state->_set_cargo(p_cargo);
+				next_active = to_state;
 			}
-			if (permitted) {
-				if (!updating) {
-					to_state->_set_cargo(p_cargo);
-					_change_active_state(to_state);
-				} else if (!next_active) {
-					// Only set next_active if we are not already in the process of changing states.
-					to_state->_set_cargo(p_cargo);
-					next_active = to_state;
-				}
-				event_consumed = true;
-			}
+			event_consumed = true;
 		}
 	}
 
@@ -343,7 +322,7 @@ void LimboHSM::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_leaf_state"), &LimboHSM::get_leaf_state);
 	ClassDB::bind_method(D_METHOD("set_active", "active"), &LimboHSM::set_active);
 	ClassDB::bind_method(D_METHOD("update", "delta"), &LimboHSM::update);
-	ClassDB::bind_method(D_METHOD("add_transition", "from_state", "to_state", "event", "guard"), &LimboHSM::add_transition, DEFVAL(Callable()));
+	ClassDB::bind_method(D_METHOD("add_transition", "from_state", "to_state", "event", "allow_reentrancy"), &LimboHSM::add_transition, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("remove_transition", "from_state", "event"), &LimboHSM::remove_transition);
 	ClassDB::bind_method(D_METHOD("has_transition", "from_state", "event"), &LimboHSM::has_transition);
 	ClassDB::bind_method(D_METHOD("anystate"), &LimboHSM::anystate);

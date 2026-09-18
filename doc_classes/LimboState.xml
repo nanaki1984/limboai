@@ -69,12 +69,6 @@
 				A chained method that connects the [signal updated] signal to a [param callable].
 			</description>
 		</method>
-		<method name="clear_guard">
-			<return type="void" />
-			<description>
-				Clears the guard function, removing the [Callable] previously set by [method set_guard].
-			</description>
-		</method>
 		<method name="dispatch">
 			<return type="bool" />
 			<param index="0" name="event" type="StringName" />
@@ -120,13 +114,6 @@
 			<return type="void" />
 			<description>
 				If it's active, exit and enter again.
-			</description>
-		</method>
-		<method name="set_guard">
-			<return type="void" />
-			<param index="0" name="guard_callable" type="Callable" />
-			<description>
-				Sets the guard function, which is a function called each time a transition to this state is considered. If the function returns [code]false[/code], the transition will be disallowed.
 			</description>
 		</method>
 	</methods>
