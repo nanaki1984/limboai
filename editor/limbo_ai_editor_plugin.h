@@ -68,6 +68,8 @@
 using namespace godot;
 #endif // LIMBOAI_GDEXTENSION
 
+class EditorDock;
+
 class LimboAIEditor : public Control {
 	GDCLASS(LimboAIEditor, Control);
 
@@ -279,6 +281,7 @@ class LimboAIEditorPlugin : public EditorPlugin {
 	GDCLASS(LimboAIEditorPlugin, EditorPlugin);
 
 private:
+	EditorDock *limbo_ai_dock;
 	LimboAIEditor *limbo_ai_editor;
 	Ref<LimboDebuggerPlugin> debugger_plugin;
 	Ref<EditorInspectorPluginBBPlan> plan_plugin;

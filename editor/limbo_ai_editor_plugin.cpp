@@ -45,6 +45,7 @@
 #include "editor/settings/project_settings_editor.h"
 #include "scene/gui/separator.h"
 #include "servers/display/display_server.h"
+#include "editor/docks/editor_dock_manager.h"
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
@@ -907,7 +908,8 @@ void LimboAIEditor::_misc_option_selected(int p_id) {
 				LimboDebuggerPlugin::get_singleton()->get_first_session_window()->set_window_enabled(true);
 			} else {
 #ifdef LIMBOAI_MODULE
-				EditorNode::get_bottom_panel()->make_item_visible(EditorDebuggerNode::get_singleton());
+				//EditorNode::get_bottom_panel()->make_item_visible(EditorDebuggerNode::get_singleton());
+				EditorDockManager::get_singleton()->open_dock(EditorDebuggerNode::get_singleton(), true);
 				EditorDebuggerNode::get_singleton()->get_default_debugger()->switch_to_debugger(
 						LimboDebuggerPlugin::get_singleton()->get_first_session_tab_index());
 #elif LIMBOAI_GDEXTENSION
@@ -1989,7 +1991,12 @@ void LimboAIEditorPlugin::make_visible(bool p_visible) {
 #elif LIMBOAI_GDEXTENSION
 void LimboAIEditorPlugin::_make_visible(bool p_visible) {
 #endif
-	limbo_ai_editor->set_visible(p_visible);
+	//limbo_ai_editor->set_visible(p_visible);
+	if (p_visible) {
+		limbo_ai_dock->make_visible();
+	} else {
+		limbo_ai_dock->hide();
+	}
 }
 
 #ifdef LIMBOAI_MODULE
@@ -2047,9 +2054,19 @@ Ref<Texture2D> LimboAIEditorPlugin::_get_plugin_icon() const {
 LimboAIEditorPlugin::LimboAIEditorPlugin() {
 	limbo_ai_editor = memnew(LimboAIEditor());
 	limbo_ai_editor->set_v_size_flags(Control::SIZE_EXPAND_FILL);
-	EditorInterface::get_singleton()->get_editor_main_screen()->add_child(limbo_ai_editor);
-	limbo_ai_editor->hide();
+	//EditorInterface::get_singleton()->get_editor_main_screen()->add_child(limbo_ai_editor);
+	//limbo_ai_editor->hide();
 	limbo_ai_editor->set_plugin(this);
+
+	limbo_ai_dock = memnew(EditorDock);
+	limbo_ai_dock->set_title("LimboAI");
+	limbo_ai_dock->set_dock_icon(LimboUtility::get_singleton()->get_task_icon("LimboAI"));
+	limbo_ai_dock->set_default_slot(EditorDock::DOCK_SLOT_MAIN_SCREEN);
+	limbo_ai_dock->set_available_layouts(EditorDock::DOCK_LAYOUT_MAIN_SCREEN | EditorDock::DOCK_LAYOUT_FLOATING);
+	limbo_ai_dock->add_child(limbo_ai_editor);
+	limbo_ai_dock->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	limbo_ai_dock->hide();
+	EditorDockManager::get_singleton()->add_dock(limbo_ai_dock);
 }
 
 LimboAIEditorPlugin::~LimboAIEditorPlugin() {

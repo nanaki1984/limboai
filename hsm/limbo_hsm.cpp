@@ -176,16 +176,17 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 
 		Transition transition;
 		_get_transition(active_state, p_event, transition);
-		if (transition.is_valid() && transition.is_allowed()) {
+		if (transition.is_valid() && transition.is_allowed()) { // #todoalex: remove is_allowed(), also is_valid seems pointless, p_to_state is checked inside add_transition
 			to_state = Object::cast_to<LimboState>(ObjectDB::get_instance(transition.to_state));
+			// #todoalex: check re-entrancy flag here!
 		}
 		if (to_state == nullptr) {
 			// Get ANYSTATE transition.
 			_get_transition(nullptr, p_event, transition);
-			if (transition.is_valid() && transition.is_allowed()) {
+			if (transition.is_valid() && transition.is_allowed()) { // #todoalex: remove is_allowed(), also is_valid seems pointless, p_to_state is checked inside add_transition
 				to_state = Object::cast_to<LimboState>(ObjectDB::get_instance(transition.to_state));
 				if (to_state == active_state) {
-					// Transitions to self are not allowed with ANYSTATE.
+					// Transitions to self are not allowed with ANYSTATE. // #todoalex: allow it if to_state says it's ok! (use a flag, defaults to false)..maybe it's best to put flag on transition
 					to_state = nullptr;
 				}
 			}
@@ -197,12 +198,12 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 
 #ifdef LIMBOAI_MODULE
 				Callable::CallError ce;
-				to_state->guard_callable.callp(nullptr, 0, ret, ce);
+				to_state->guard_callable.callp(nullptr, 0, ret, ce); // #todoalex: use a virtual call on to_state: "is_transition_allowed" or something, passing current state, event and cargo. (defaults to true)
 				if (unlikely(ce.error != Callable::CallError::CALL_OK)) {
 					ERR_PRINT_ONCE("LimboHSM: Error calling substate's guard callable: " + Variant::get_callable_error_text(to_state->guard_callable, nullptr, 0, ce));
 				}
 #elif LIMBOAI_GDEXTENSION
-				ret = to_state->guard_callable.call();
+				ret = to_state->guard_callable.call(); // #todoalex: look up
 #endif
 
 				if (unlikely(ret.get_type() != Variant::BOOL)) {
