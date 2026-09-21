@@ -40,7 +40,6 @@ private:
 	Node *agent;
 	Ref<Blackboard> blackboard;
 	HashMap<StringName, Callable> handlers;
-	StringName event;
 	Variant cargo;
 
 	Ref<BlackboardPlan> _get_parent_scope_plan() const;
@@ -50,8 +49,8 @@ protected:
 
 	static void _bind_methods();
 
-	void _clear_event_and_cargo() { event = StringName(); cargo = Variant(); }
-	void _set_event_and_cargo(const StringName &p_event, const Variant &p_cargo) { event = p_event; cargo = p_cargo; }
+	void _clear_cargo() { cargo = Variant(); }
+	void _set_cargo(const Variant &p_cargo) { cargo = p_cargo; }
 	void _notification(int p_what);
 
 	virtual void _initialize(Node *p_agent, const Ref<Blackboard> &p_blackboard);
@@ -78,7 +77,6 @@ protected:
 #endif
 
 public:
-	StringName get_event() { return event; }
 	Variant get_cargo() { return cargo; }
 	void restart();
 

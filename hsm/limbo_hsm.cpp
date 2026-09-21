@@ -64,7 +64,7 @@ void LimboHSM::_change_active_state(LimboState *p_state) {
 	emit_signal(LW_NAME(active_state_changed), active_state, previous_active);
 
 	if (active_state != nullptr) {
-		active_state->_clear_event_and_cargo();
+		active_state->_clear_cargo();
 	}
 }
 
@@ -100,13 +100,7 @@ void LimboHSM::update(double p_delta) {
 	_update(p_delta);
 	updating = false;
 	if (next_active) {
-		auto next_event = next_active->event;
-		auto next_cargo = next_active->cargo;
 		_change_active_state(next_active);
-		if (next_active->is_class("LimboHSM")) {
-			// Dispatch event down to HSM, to change state from initial state, if necessary
-			next_active->_dispatch(next_event, next_cargo);
-		}
 		next_active = nullptr;
 	}
 }
@@ -200,15 +194,11 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 		}
 		if (to_state && to_state->_is_transition_allowed(active_state, p_event, p_cargo)) {
 			if (!updating) {
-				to_state->_set_event_and_cargo(p_event, p_cargo);
+				to_state->_set_cargo(p_cargo);
 				_change_active_state(to_state);
-				if (to_state->is_class("LimboHSM")) {
-					// Dispatch event down to HSM, to change state from initial state, if necessary
-					to_state->_dispatch(p_event, p_cargo);
-				}
 			} else if (!next_active) {
 				// Only set next_active if we are not already in the process of changing states.
-				to_state->_set_event_and_cargo(p_event, p_cargo);
+				to_state->_set_cargo(p_cargo);
 				next_active = to_state;
 			}
 			event_consumed = true;

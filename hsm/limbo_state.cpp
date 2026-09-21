@@ -233,7 +233,6 @@ void LimboState::_notification(int p_what) {
 }
 
 void LimboState::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("get_event"), &LimboState::get_event);
 	ClassDB::bind_method(D_METHOD("get_cargo"), &LimboState::get_cargo);
 	ClassDB::bind_method(D_METHOD("restart"), &LimboState::restart);
 	ClassDB::bind_method(D_METHOD("get_root"), &LimboState::get_root);
