@@ -182,6 +182,9 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 			if (to_state == active_state && !transition.allow_reentrancy) {
 				to_state = nullptr;
 			}
+			if (to_state && !to_state->_is_transition_allowed(active_state, p_event, p_cargo)) {
+				to_state = nullptr;
+			}
 		}
 		if (to_state == nullptr) {
 			// Get ANYSTATE transition.
@@ -190,9 +193,12 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 				if (to_state == active_state && !transition.allow_reentrancy) {
 					to_state = nullptr;
 				}
+				if (to_state && !to_state->_is_transition_allowed(active_state, p_event, p_cargo)) {
+					to_state = nullptr;
+				}
 			}
 		}
-		if (to_state && to_state->_is_transition_allowed(active_state, p_event, p_cargo)) {
+		if (to_state) {
 			if (!updating) {
 				to_state->_set_cargo(p_cargo);
 				_change_active_state(to_state);
